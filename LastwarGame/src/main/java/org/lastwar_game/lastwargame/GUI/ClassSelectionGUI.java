@@ -3,88 +3,98 @@ package org.lastwar_game.lastwargame.GUI;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.lastwar_game.lastwargame.managers.GameManager;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
+import org.lastwar_game.lastwargame.LastWarPlugin;
 
-import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class ClassSelectionGUI {
-    private static final Map<String, Material> classIcons = Map.of(
-            "LadyNagant", Material.RED_DYE,
-            "Archer", Material.BOW,
-            "Tank", Material.SHIELD,
-            "Saske", Material.RED_DYE
-    );
+    public static final String GUI_TITLE = "Class Selection";
 
-    public static void open(Player player) {
-        World world = player.getWorld();
-        int playerCount = world.getPlayers().size();
+    // фиксированный порядок
+    private static final String[] ORDER = {
+            "LadyNagant","Saske","Hutao","Ganyu","Dio","Naruto","BurgerMaster","Uraraka"
+    };
 
-        Inventory gui = Bukkit.createInventory(null, 27, "Class Selection");
-        GameManager gameManager = GameManager.getInstance();
-
-        int slot = 0;
-        for (Map.Entry<String, Material> entry : classIcons.entrySet()) {
-            String className = entry.getKey();
-            Material material = entry.getValue();
-
-            boolean isTaken = gameManager.isClassTaken(className);
-            ItemStack item = createGuiItem(material, className, isTaken ? "§cTaken" : "§7Available");
-
-            if (isTaken) {
-                item.addUnsafeEnchantment(Enchantment.DURABILITY, 1);
-            }
-
-            gui.setItem(slot, item);
-            slot++;
-        }
-
-        player.openInventory(gui);
+    // все иконки RED_DYE как просили
+    private static final Map<String, Material> ICONS = new LinkedHashMap<>();
+    static {
+        for (String id : ORDER) ICONS.put(id, Material.RED_DYE);
     }
 
-    private static ItemStack createGuiItem(Material material, String name, String lore) {
-        ItemStack item = new ItemStack(material, 1);
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            meta.displayName(Component.text(name)); // строго без цветов, если текстурпак зависит от точного совпадения
-            meta.lore(Arrays.asList(Component.text(lore)));
-            item.setItemMeta(meta);
+    // “красивые” слоты в 27-слотовом меню (9*3), поперёк ряда: 10..16, затем 19..22
+    private static final int[] SLOTS = {10,11,12,13,14,15,16,19,20,21,22};
+
+    private static NamespacedKey keyClassId() { return new NamespacedKey(LastWarPlugin.getInstance(), "classId"); }
+    private static NamespacedKey keySlot()    { return new NamespacedKey(LastWarPlugin.getInstance(), "slotIndex"); }
+
+    public static void open(Player player) {
+        Inventory inv = Bukkit.createInventory(null, 27, GUI_TITLE);
+
+        int placed = 0;
+        for (int i = 0; i < ORDER.length && i < SLOTS.length; i++) {
+            String classId = ORDER[i];
+            int slot = SLOTS[i];
+            ItemStack it = buildItem(classId, ICONS.getOrDefault(classId, Material.RED_DYE), slot);
+            inv.setItem(slot, it);
+            placed++;
+            Bukkit.getLogger().info("[LastWarGame] [ClassGUI] put '" + classId + "' into slot #" + slot);
         }
+
+        player.openInventory(inv);
+        Bukkit.getLogger().info("[LastWarGame] [ClassGUI] opened for " + player.getName() + " | placed=" + placed);
+    }
+
+    private static ItemStack buildItem(String classId, Material icon, int slot) {
+        ItemStack item = new ItemStack(icon, 1);
+        ItemMeta meta = item.getItemMeta();
+
+        // красивое отображаемое имя — только для вида
+        meta.displayName(Component.text(classId));
+        meta.lore(java.util.List.of(Component.text("§7Click to select")));
+
+        // прячем подсветку
+        meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+
+        // критично: пишем classId и slot в PDC
+        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+        pdc.set(keyClassId(), PersistentDataType.STRING, classId);
+        pdc.set(keySlot(),    PersistentDataType.INTEGER, slot);
+
+        item.setItemMeta(meta);
         return item;
     }
 
-}
+    // Подсветка выбора ТОЛЬКО у самого игрока
+    public static void highlightSelectionInOpenMenu(Player player, String classId) {
+        if (player.getOpenInventory() == null) return;
+        if (!GUI_TITLE.equals(player.getOpenInventory().getTitle())) return;
 
-//    public static void open(Player player) {
-//        World world = player.getWorld();
-//        int playerCount = ((World) world).getPlayers().size(); // Получаем количество игроков в мире
-//
-//        Inventory gui = Bukkit.createInventory(null, 27, "Выберите класс");
-//
-//        gui.setItem(0, createGuiItem(Material.IRON_SWORD, "Warrior", "§7Players: §e" + playerCount + "§7/10"));
-//        gui.setItem(1, createGuiItem(Material.BOW, "Archer", "§7Players: §e" + playerCount + "§7/10"));
-//        gui.setItem(2, createGuiItem(Material.BLAZE_POWDER, "Mage", "§7Players: §e" + playerCount + "§7/10"));
-//        gui.setItem(3, createGuiItem(Material.SHIELD, "Tank", "§7Players: §e" + playerCount + "§7/10"));
-//        gui.setItem(4, createGuiItem(Material.IRON_AXE, "Berserker", "§7Players: §e" + playerCount + "§7/10"));
-//        gui.setItem(5, createGuiItem(Material.ENDER_EYE, "Necromancer", "§7Players: §e" + playerCount + "§7/10"));
-//
-//        player.openInventory(gui);
-//    }
-//
-//    static ItemStack createGuiItem(Material material, String name, String lore) {
-//        ItemStack item = new ItemStack(material, 1);
-//        ItemMeta meta = item.getItemMeta();
-//        if (meta != null) {
-//            meta.setDisplayName(name);
-//            meta.setLore(Arrays.asList(lore));
-//            item.setItemMeta(meta);
-//        }
-//        return item;
-//    }
-//}
+        Inventory inv = player.getOpenInventory().getTopInventory();
+        for (ItemStack it : inv.getContents()) {
+            if (it == null || !it.hasItemMeta()) continue;
+            ItemMeta m = it.getItemMeta();
+
+            m.removeEnchant(Enchantment.LUCK);
+            m.removeItemFlags(ItemFlag.HIDE_ENCHANTS);
+
+            String stored = m.getPersistentDataContainer().get(keyClassId(), PersistentDataType.STRING);
+            if (stored != null && stored.equalsIgnoreCase(classId)) {
+                m.addEnchant(Enchantment.LUCK, 1, true);
+                m.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+            }
+            it.setItemMeta(m);
+        }
+        player.updateInventory();
+    }
+}

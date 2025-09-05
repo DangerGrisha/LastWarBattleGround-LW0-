@@ -39,12 +39,13 @@ public class PlayerWorldChangeListener implements Listener {
         String fromWorld = event.getFrom().getWorld().getName();
         String toWorld = event.getTo().getWorld().getName();
 
+        World targetWorld = player.getWorld();
+        Location center = new Location(targetWorld, -164.5, 184, 297.5);
+        Location randomSpawn = getRandomLocationAround(center, 3);
+
         // ✅ Если игрок переходит из лобби в игровой мир
         if (!GameWorlds.WORLD_NAMES.contains(fromWorld) && GameWorlds.WORLD_NAMES.contains(toWorld)) {
             Bukkit.getScheduler().runTaskLater(org.lastwar_game.lastwargame.LastWarPlugin.getInstance(), () -> {
-                World targetWorld = player.getWorld();
-                Location center = new Location(targetWorld, -164.5, 184, 297.5);
-                Location randomSpawn = getRandomLocationAround(center, 3);
 
                 player.teleport(randomSpawn);
 

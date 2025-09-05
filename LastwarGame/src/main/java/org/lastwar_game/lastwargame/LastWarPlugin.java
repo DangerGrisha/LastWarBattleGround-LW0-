@@ -44,6 +44,7 @@ public class LastWarPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new ListenerPaperRedConcrete(), this);
         getServer().getPluginManager().registerEvents(new PlayerMovementFreezeListener(), this);
 
+
         ServerSelectionAutoRefreshTask.start(this);
 
         GameManager.getInstance().init(this);

@@ -1,38 +1,63 @@
 package org.lastwar_game.lastwargame.listeners.GUI;
 
-import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.lastwar_game.lastwargame.GUI.TeamSelectorGUI;
 import org.lastwar_game.lastwargame.managers.GameManager;
+import org.lastwar_game.lastwargame.teams.TeamKey;
 
-import java.util.EnumSet;
-import java.util.Set;
-
+// TeamSelectionClickListener.java
 public class TeamSelectionClickListener implements Listener {
-    private static final Set<Material> TEAM_WOOL = EnumSet.of(Material.WHITE_WOOL, Material.RED_WOOL, Material.BLUE_WOOL);
-
+    public static final String E_TEAM_SELECTION = "§eTeam Selection";
 
     @EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
         if (event.getHand() != EquipmentSlot.HAND) return;
-        Player player = event.getPlayer();
-        ItemStack item = player.getInventory().getItemInMainHand();
 
-        // ✅ Проверяем, что игрок кликнул по шерсти "Team Selection"
-        if (TEAM_WOOL.contains(item.getType()) && item.getItemMeta() != null &&
-                item.getItemMeta().getDisplayName().equals("§eTeam Selection")) {
+        final Player player = event.getPlayer();
+        final ItemStack item = player.getInventory().getItemInMainHand();
+        if (item == null || item.getType() == null || item.getItemMeta() == null) return;
 
-            if (GameManager.getInstance().isTeamSelectionLocked(player.getUniqueId())) {
-                player.sendMessage("§cYou can no longer change teams!");
-                return;
-            }
+        String name = item.getItemMeta().getDisplayName();
+        boolean isSelector = E_TEAM_SELECTION.equals(name) || (name != null && name.startsWith("§eYour Team"));
+        if (!isSelector) return;
 
-            TeamSelectorGUI.open(player); // ✅ Открываем меню выбора команды
+        // NEW: блокируем смену только после старта игры
+        if (!GameManager.getInstance().canChangeTeam(player)) {
+            player.sendMessage("§cTeams are locked after the game starts.");
+            return;
         }
+
+        TeamSelectorGUI.open(player);
+    }
+    // TeamSelectorInventoryClickListener.java
+    @EventHandler
+    public void onTeamSelectClick(InventoryClickEvent event) {
+        if (event.getView() == null || event.getView().getTitle() == null) return;
+        if (!TeamSelectorGUI.GUI_TITLE.equals(event.getView().getTitle())) return;
+
+        event.setCancelled(true);
+
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+        if (!GameManager.getInstance().canChangeTeam(player)) {
+            player.sendMessage("§cTeams are locked after the game starts.");
+            player.closeInventory();
+            return;
+        }
+
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked == null || clicked.getType() == null) return;
+
+        TeamKey key = TeamKey.fromWool(clicked.getType());
+        if (key == null) return;
+
+        GameManager.getInstance().selectTeam(player, key); // внутри — refreshAllViewers()
+        player.closeInventory();
     }
 }
+

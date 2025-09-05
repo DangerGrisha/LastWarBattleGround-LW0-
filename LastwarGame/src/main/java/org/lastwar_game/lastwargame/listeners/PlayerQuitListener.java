@@ -17,15 +17,15 @@ public class PlayerQuitListener implements Listener {
     private static final String LOBBY_WORLD = "world";
 
 
-//    @EventHandler
-//    public void onPlayerQuit(PlayerQuitEvent event) {
-//        Player player = event.getPlayer();
-//        World playerWorld = player.getWorld();
-//
-//        // ✅ Проверяем, был ли игрок в игровом мире
-//        if (gameWorlds.contains(playerWorld.getName()) || !playerWorld.getName().equals(LOBBY_WORLD)) {
-//            Bukkit.getLogger().info("[LastWar] " + player.getName() + " left from " + playerWorld.getName() + ". Returning to lobby on next join.");
-//            GameManager.getInstance().checkGameStart(player.getWorld().getName());
-//        }
-//    }
+   @EventHandler
+   public void onPlayerQuit(PlayerQuitEvent event) {
+       Player player = event.getPlayer();
+       World playerWorld = player.getWorld();
+        GameWorlds gw = GameWorlds.;
+       // ✅ Проверяем, был ли игрок в игровом мире
+       if (gw.contains(playerWorld.getName()) || !playerWorld.getName().equals(LOBBY_WORLD)) {
+           Bukkit.getLogger().info("[LastWar] " + player.getName() + " left from " + playerWorld.getName() + ". Returning to lobby on next join.");
+           GameManager.getInstance().checkGameStart(player.getWorld().getName());
+       }
+   }
 }

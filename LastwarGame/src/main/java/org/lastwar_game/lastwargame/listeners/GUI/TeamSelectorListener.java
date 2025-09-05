@@ -34,7 +34,7 @@ public class TeamSelectorListener implements Listener {
                 GameManager.getInstance().selectTeam(player, team);
                 GameManager.getInstance().updatePlayerTeam(player, team); // ✅ Обновляем данные
 
-                player.sendMessage("§aYou have joined the " + (team.equals("RED") ? "§cRed" : "§9Blue") + " Team!");
+                // player.sendMessage("§aYou have joined the " + (team.equals("RED") ? "§cRed" : "§9Blue") + " Team!");
             }
         }
     }
