@@ -1,4 +1,4 @@
-package org.lastwar_game.lastwargame.listeners;
+package org.lastwar_game.lastwargame.listeners.player_teleportation;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -9,13 +9,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.entity.Player;
 import org.lastwar_game.lastwargame.GameWorlds;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
 import org.lastwar_game.lastwargame.managers.GameManager;
-import org.lastwar_game.lastwargame.managers.LobbyManager;
-
-import java.util.Arrays;
-import java.util.List;
 
 import static org.lastwar_game.lastwargame.managers.LobbyItems.*;
 
@@ -47,7 +41,7 @@ public class PlayerWorldChangeListener implements Listener {
         if (!GameWorlds.WORLD_NAMES.contains(fromWorld) && GameWorlds.WORLD_NAMES.contains(toWorld)) {
             Bukkit.getScheduler().runTaskLater(org.lastwar_game.lastwargame.LastWarPlugin.getInstance(), () -> {
 
-                player.teleport(randomSpawn);
+                //player.teleport(randomSpawn);
 
                 player.getInventory().remove(Material.COMPASS);
                 player.getInventory().remove(Material.PAPER);

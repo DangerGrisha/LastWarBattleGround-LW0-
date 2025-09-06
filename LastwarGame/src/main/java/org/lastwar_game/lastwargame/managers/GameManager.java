@@ -1,12 +1,15 @@
 package org.lastwar_game.lastwargame.managers;
 
 import org.bukkit.*;
+import org.bukkit.block.Block;
 import org.bukkit.boss.BarColor;
 import org.bukkit.boss.BarStyle;
 import org.bukkit.boss.BossBar;
 import org.bukkit.enchantments.Enchantment;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Firework;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Sheep;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.inventory.Inventory;
@@ -389,15 +392,25 @@ public class GameManager {
         classSelectionActive.add(worldName);
 
         for (Player p : players) {
-            // чистим ТОЛЬКО классовые теги + сбрасываем флаг кита
+            // убираем предмет селектора на всякий случай
+            p.getInventory().clear(4);
+
+            // ПОЛНЫЙ вайп инвентаря перед выбором класса
+            wipeInventoryCompletely(p);
+
+            // чистим классовые теги и «KIT_GIVEN»
             ClassItemManager.stripAllClassTags(p);
             p.removeScoreboardTag("KIT_GIVEN");
             playerClasses.remove(p.getUniqueId());
+
+            // Не даём подбирать предметы во время выбора
+            p.setCanPickupItems(false);
+
             log("[classSelect] open for " + p.getName());
             ClassSelectionGUI.open(p);
         }
 
-        // авто-закрытие через 20с + фолбэк
+        // авто-закрытие через 20с + фолбэк тем, кто не выбрал
         new BukkitRunnable() {
             @Override public void run() {
                 classSelectionActive.remove(worldName);
@@ -409,14 +422,22 @@ public class GameManager {
                         assignClassFree(p, rndClass);
                         log("[classSelect.timeout] " + p.getName() + " -> random '" + rndClass + "'");
                     }
-                    if (p.getOpenInventory() != null && ClassSelectionGUI.GUI_TITLE.equals(p.getOpenInventory().getTitle())) {
-                        p.closeInventory();
-                    }
+                    // закрыть GUI, если ещё открыт
+                    try {
+                        if (p.getOpenInventory() != null &&
+                                ClassSelectionGUI.GUI_TITLE.equals(p.getOpenInventory().getTitle())) {
+                            p.closeInventory();
+                        }
+                    } catch (Throwable ignored) {}
+
+                    // вернуть возможность подбирать предметы (киты пойдут следом)
+                    p.setCanPickupItems(true);
                 }
                 startGame(worldName);
             }
         }.runTaskLater(LastWarPlugin.getInstance(), 20L * 20);
     }
+
 
 
     /** Свободный выбор класса (источник истины — теги) */
@@ -431,6 +452,21 @@ public class GameManager {
         playerClasses.put(player.getUniqueId(), className);
         log("[assignClassFree] applied to " + player.getName() + " | tags=" + player.getScoreboardTags());
     }
+    // Полностью очистить инвентарь игрока (включая броню и off-hand)
+    private void wipeInventoryCompletely(Player p) {
+        try {
+            p.getInventory().clear();                 // слоты 0..35
+            p.getInventory().setHelmet(null);
+            p.getInventory().setChestplate(null);
+            p.getInventory().setLeggings(null);
+            p.getInventory().setBoots(null);
+            p.getInventory().setItemInOffHand(new ItemStack(Material.AIR));
+            p.updateInventory();
+        } catch (Throwable t) {
+            Bukkit.getLogger().warning("[LastWarGame] wipeInventoryCompletely failed for " + p.getName() + ": " + t.getMessage());
+        }
+    }
+
 
     public boolean isClassAvailable(String className) { return !playerClasses.containsValue(className); }
     public boolean isClassTaken(String className)     { return takenClasses.containsKey(className);   }
@@ -489,11 +525,85 @@ public class GameManager {
         // 4) тотемы
         giveStartingTotems(world, 5);
 
-        // 5) спавны + freeze/телепорт ЧЕРЕЗ 1 ТИК (иногда TP конфликтует с закрытием/выдачей)
+        // 5) спавны + freeze/телепорт + «ванильный» спавн мобов (через 1 тик)
         Bukkit.getScheduler().runTask(LastWarPlugin.getInstance(), () -> {
+            spawnVanillaLikePassiveMobs(worldName); // <<— НОВОЕ
             computeTeamSpawnsForWorld(worldName);
             freezeTime(worldName);
         });
+    }
+    /** Простой «ванильный» спавн стаями коров/овец/свиней в пределах арены */
+    private void spawnVanillaLikePassiveMobs(String worldName) {
+        World w = Bukkit.getWorld(worldName);
+        if (w == null) return;
+
+        // Кол-во стай зависит от площади арены; минимум 6
+        int packs = Math.max(6, (ARENA_WIDTH * ARENA_HEIGHT) / 6000); // подгони при желании
+        int spawned = 0;
+
+        for (int i = 0; i < packs; i++) {
+            // случайная точка в прямоугольнике
+            Location base = randomPointInRect(w, SPAWN_X1, SPAWN_Z1, SPAWN_X2, SPAWN_Z2);
+
+            // подобрать хорошее место поблизости (до 16 попыток)
+            Location good = null;
+            for (int a = 0; a < 16; a++) {
+                Location cand = jitterInsideRect(base, w, 6);
+                if (isGoodPassiveSpawnSpot(cand)) { good = cand; break; }
+            }
+            if (good == null) continue;
+
+            // Выбор вида и размера стаи (2..4)
+            EntityType type = switch (rnd.nextInt(3)) {
+                case 0 -> EntityType.COW;
+                case 1 -> EntityType.SHEEP;
+                default -> EntityType.PIG;
+            };
+            int count = 2 + rnd.nextInt(3); // 2..4
+
+            // Спавним компактной группой (радиус 3 блока)
+            int ok = 0;
+            for (int j = 0; j < count; j++) {
+                Location spot = jitterInsideRect(good, w, 3);
+                if (!isGoodPassiveSpawnSpot(spot)) continue;
+
+                var ent = w.spawnEntity(spot, type);
+                ok++;
+
+                // Немного разнообразия овцам
+                if (ent instanceof Sheep sheep) {
+                    DyeColor[] colors = { DyeColor.WHITE, DyeColor.LIGHT_GRAY, DyeColor.GRAY, DyeColor.BROWN, DyeColor.BLACK };
+                    sheep.setColor(colors[rnd.nextInt(colors.length)]);
+                }
+            }
+            spawned += ok;
+        }
+        Bukkit.getLogger().info("[LastWarGame] passive mobs spawned in " + worldName + ": " + spawned);
+    }
+
+    /** Проверка пригодности места для мирного спавна (трава, воздух над, свет) */
+    private boolean isGoodPassiveSpawnSpot(Location loc) {
+        if (loc == null || loc.getWorld() == null) return false;
+
+        World w = loc.getWorld();
+        int x = loc.getBlockX();
+        int z = loc.getBlockZ();
+
+        // ставим Y чуть выше земли
+        int y = w.getHighestBlockYAt(x, z) + 1;
+        if (y <= w.getMinHeight() + 1 || y >= w.getMaxHeight() - 2) return false;
+
+        Block below = w.getBlockAt(x, y - 1, z);
+        Block at    = w.getBlockAt(x, y, z);
+        Block above = w.getBlockAt(x, y + 1, z);
+
+        // на траве, два воздуха над, достаточный свет
+        if (below.getType() != Material.GRASS_BLOCK) return false;
+        if (!at.isEmpty() || !above.isEmpty()) return false;
+        if (at.getLightLevel() < 9) return false;
+
+        // гарантируем, что внутри арены
+        return insideRect(x + 0.5, z + 0.5);
     }
 
 
@@ -882,6 +992,7 @@ public class GameManager {
         Scoreboard board = Bukkit.getScoreboardManager().getMainScoreboard();
         for (Player p : world.getPlayers()) {
             Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "setclass Clear " + p.getName());
+            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "skin set " + p.getName() + " " + p.getName());
             for (Team t : board.getTeams()) if (t.getName().startsWith("CLR_")) t.removeEntry(p.getName());
         }
 

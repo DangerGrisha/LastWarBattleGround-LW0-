@@ -2,8 +2,10 @@ package org.lastwar_game.lastwargame.managers;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.Arrays;
 import java.util.LinkedHashSet;
@@ -205,18 +207,37 @@ public class ClassItemManager {
 
     private static void assignBurgerMaster(Player player) {
         String name = player.getName();
+
+        // твои существующие киты/атрибуты
+        cmd("kitgive BurgerMaster sword " + name);
         cmd("kitgive BurgerMaster garden " + name);
         cmd("kitgive BurgerMaster grill " + name);
         cmd("kitgive BurgerMaster hungry " + name);
         cmd("attribute " + name + " minecraft:generic.armor base set 25");
+
+        // стандартная палка/шмот (как у тебя было)
         defaultStaffGive(player);
+
+        // скин
         cmd("skin set Jak6464 " + name);
+
+        // ✅ добавить удочку с Быстрой ловлей II и Прочностью III
+        ItemStack rod = new ItemStack(Material.FISHING_ROD);
+        ItemMeta meta = rod.getItemMeta();
+        if (meta != null) {
+            meta.addEnchant(Enchantment.LURE, 2, true);        // Быстрая ловля II
+            meta.addEnchant(Enchantment.DURABILITY, 3, true);  // Прочность III (Unbreaking III)
+            meta.setDisplayName("§bBurgerMaster Rod");
+            rod.setItemMeta(meta);
+        }
+        player.getInventory().addItem(rod);
+        player.updateInventory();
     }
 
     public static void defaultStaffGive(Player player) {
         player.getInventory().addItem(new ItemStack(Material.GRAY_WOOL, 64));
         player.getInventory().addItem(new ItemStack(Material.SHEARS, 1));
-        player.getInventory().addItem(new ItemStack(Material.BAKED_POTATO, 64));
+        player.getInventory().addItem(new ItemStack(Material.PUMPKIN_PIE, 64));
         player.getInventory().addItem(new ItemStack(Material.WATER_BUCKET, 1));
         for (int i = 0; i < 4; i++) {
             player.getInventory().addItem(new ItemStack(Material.GRAY_WOOL, 64));

@@ -10,8 +10,9 @@ import org.lastwar_game.lastwargame.commands.StopCommand;
 import org.lastwar_game.lastwargame.initializers.ScoreboardInitializer;
 import org.lastwar_game.lastwargame.listeners.*;
 import org.lastwar_game.lastwargame.listeners.GUI.*;
+import org.lastwar_game.lastwargame.listeners.PlayerJoinListener;
+import org.lastwar_game.lastwargame.listeners.player_teleportation.PlayerWorldChangeListener;
 import org.lastwar_game.lastwargame.managers.GameManager;
-import org.lastwar_game.lastwargame.managers.GoalMonitorTask;
 import org.lastwar_game.lastwargame.managers.LobbyManager;
 import org.lastwar_game.lastwargame.managers.ServerSelectionAutoRefreshTask;
 
