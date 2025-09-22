@@ -162,6 +162,9 @@ public class ClassItemManager {
         cmd("attribute " + name + " minecraft:generic.armor base set 25");
         defaultStaffGive(player);
         cmd("skin set Faantasia " + name);
+        ItemStack arrows = new ItemStack(Material.ARROW, 64);
+        player.getInventory().addItem(arrows);
+        player.updateInventory();
     }
 
     private static void assignDio(Player player) {
